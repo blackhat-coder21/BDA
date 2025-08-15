@@ -239,63 +239,6 @@ class FlightCarbonCalculator:
         
         return processed_flights
     
-    # def extract_and_save_flights(self, total_flights=500, output_file='flight_emissions.csv'):
-    #     all_flights = []
-    #     batch_size = 100
-    #     successful_extractions = 0
-        
-    #     st.info(f"Extracting {total_flights} flights data...")
-        
-    #     for offset in range(0, total_flights, batch_size):
-    #         batch_number = offset // batch_size + 1
-    #         total_batches = (total_flights - 1) // batch_size + 1
-            
-    #         st.write(f"Processing batch {batch_number}/{total_batches} (offset: {offset})")
-            
-    #         flights_data = self.get_flights_data(limit=batch_size, offset=offset)
-            
-    #         if not flights_data:
-    #             st.warning("No more data available from API")
-    #             break
-            
-    #         st.write(f"  - Retrieved {len(flights_data)} flights from API")
-            
-    #         processed_flights = self.process_flight_data(flights_data)
-    #         successful_batch = len(processed_flights)
-    #         successful_extractions += successful_batch
-            
-    #         st.write(f"  - Successfully processed {successful_batch} flights")
-            
-    #         all_flights.extend(processed_flights)
-            
-    #         time.sleep(1)
-        
-    #     if all_flights:
-    #         df = pd.DataFrame(all_flights)
-            
-    #         st.write(f"\nTotal flights extracted: {len(df)}")
-    #         st.write(f"Flights with distance data: {len(df[df['distance_km'].notna()])}")
-    #         st.write(f"Flights with CO2 calculations: {len(df[df['co2_per_passenger_kg'].notna()])}")
-            
-    #         df_clean = df.dropna(subset=['origin_airport', 'destination_airport'])
-            
-    #         df.to_csv(output_file, index=False)
-    #         st.success(f"Saved full dataset ({len(df)} flights) to {output_file}")
-            
-    #         clean_file = output_file.replace('.csv', '_clean.csv')
-    #         df_with_emissions = df_clean[df_clean['co2_per_passenger_kg'].notna()]
-            
-    #         if len(df_with_emissions) > 0:
-    #             df_with_emissions.to_csv(clean_file, index=False)
-    #             st.success(f"Saved clean dataset ({len(df_with_emissions)} flights) to {clean_file}")
-                
-    #             return df_with_emissions
-    #         else:
-    #             st.error("No flights with emissions data available for ML training")
-    #             return df
-    #     else:
-    #         st.error("No flight data extracted")
-    #         return pd.DataFrame()
 
     def extract_and_save_flights(self, total_flights=500, output_file='flight_emissions.csv'):
         all_flights = []
@@ -359,53 +302,6 @@ class FlightCarbonCalculator:
             st.error("No flight data extracted")
             return pd.DataFrame()
     
-    # def display_summary_stats(self, df):
-    #     st.write("### FLIGHT EMISSIONS SUMMARY")
-        
-    #     if len(df) > 0:
-    #         st.write(f"**Total flights processed**: {len(df)}")
-    #         st.write(f"**Airlines covered**: {df['airline_name'].nunique()}")
-    #         st.write(f"**Routes covered**: {len(df.groupby(['origin_airport', 'destination_airport']))}")
-            
-    #         if 'co2_per_passenger_kg' in df.columns:
-    #             emissions_stats = df['co2_per_passenger_kg'].describe()
-    #             st.write("#### CO₂ Emissions per Passenger (kg)")
-    #             st.write(f"- Mean: {emissions_stats['mean']:.2f} kg")
-    #             st.write(f"- Median: {emissions_stats['50%']:.2f} kg")
-    #             st.write(f"- Min: {emissions_stats['min']:.2f} kg")
-    #             st.write(f"- Max: {emissions_stats['max']:.2f} kg")
-                
-    #             # Plot emissions distribution
-    #             fig_emissions = px.histogram(df, x='co2_per_passenger_kg', nbins=50, title="CO₂ Emissions per Passenger Distribution")
-    #             st.plotly_chart(fig_emissions)
-            
-    #         if 'distance_km' in df.columns:
-    #             distance_stats = df['distance_km'].describe()
-    #             st.write("#### Distance Statistics")
-    #             st.write(f"- Mean: {distance_stats['mean']:.0f} km")
-    #             st.write(f"- Median: {distance_stats['50%']:.0f} km")
-    #             st.write(f"- Min: {distance_stats['min']:.0f} km")
-    #             st.write(f"- Max: {distance_stats['max']:.0f} km")
-                
-    #             # Plot distance distribution
-    #             fig_distance = px.histogram(df, x='distance_km', nbins=50, title="Flight Distance Distribution")
-    #             st.plotly_chart(fig_distance)
-            
-    #         if 'co2_per_passenger_per_km' in df.columns and 'airline_name' in df.columns:
-    #             airline_efficiency = df.groupby('airline_name')['co2_per_passenger_per_km'].mean().sort_values()
-    #             st.write("#### Top 5 Most Efficient Airlines (kg CO₂/passenger/km)")
-    #             for airline, efficiency in airline_efficiency.head().items():
-    #                 st.write(f"- {airline}: {efficiency:.4f}")
-                
-    #             # Plot airline efficiency
-    #             fig_efficiency = px.bar(
-    #                 airline_efficiency.reset_index(),
-    #                 x='airline_name',
-    #                 y='co2_per_passenger_per_km',
-    #                 title="Airline Efficiency Comparison (kg CO₂/passenger/km)",
-    #                 labels={'co2_per_passenger_per_km': 'CO₂ per Passenger per km', 'airline_name': 'Airline'}
-    #             )
-    #             st.plotly_chart(fig_efficiency)
 
     def display_summary_stats(self, df, unique_id=None):
         # Generate a unique ID if none provided (e.g., timestamp or random string)

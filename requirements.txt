@@ -1,0 +1,11 @@
+streamlit
+pandas
+numpy
+plotly
+requests
+datetime
+time
+json
+geopy
+warnings
+statsmodels
