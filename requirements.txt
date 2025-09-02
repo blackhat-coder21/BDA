@@ -5,3 +5,5 @@ plotly
 requests
 geopy
 statsmodels
+sklearn
+aiohttp
