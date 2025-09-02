@@ -1,6 +1,7 @@
 streamlit
 pandas
 numpy
+bs4
 plotly
 requests
 geopy
