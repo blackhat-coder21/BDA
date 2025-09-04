@@ -14,17 +14,10 @@ from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error, r2_score
-import re
-from sklearn.linear_model import ElasticNet
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.svm import SVR
-import xgboost as xgb
-import lightgbm as lgb
 import asyncio
 import aiohttp
-from bs4 import BeautifulSoup
-import hashlib
-import os
 from typing import Dict, List, Optional, Tuple
 import logging
 
@@ -40,7 +33,7 @@ class EnhancedFlightCarbonCalculator:
         """Initialize the enhanced calculator with multiple data sources"""
         # Multiple API keys for different services
         self.api_keys = {
-            'aviationstack': '034659c48f30f9832c05aea458a29eb5',
+            'aviationstack': '565fc324183ddae9fa3f74bcfd582796',
             'opensky': None, 
             'flightaware': None,
         }
@@ -55,73 +48,163 @@ class EnhancedFlightCarbonCalculator:
         # Comprehensive aircraft emissions data (kg CO2 per km per passenger)
         self.aircraft_emissions = {
             # Narrow-body aircraft
-            'A319': 0.105, 'A320': 0.095, 'A321': 0.092,
-            'A20N': 0.085, 'A21N': 0.082, 'A319NEO': 0.088,
-            'B737': 0.098, 'B738': 0.096, 'B739': 0.094, 'B37M': 0.086,
-            'B38M': 0.086, 'B39M': 0.084, 'B3XM': 0.082,
+            'A319': 0.105,
+            'A320': 0.095,
+            'A321': 0.092,
+            'A20N': 0.085,
+            'A21N': 0.082,
+            'A21N_EASA_EST': 0.0045,  # EASA: 0.904 kg/km / 200 passengers (assumed)
+            'A319NEO': 0.088,
+            'B737': 0.098,
+            'B738': 0.096,
+            'B739': 0.094,
+            'B37M': 0.086,  # Boeing 737 MAX 7
+            'B38M': 0.086,  # Boeing 737 MAX 8
+            'B39M': 0.084,  # Boeing 737 MAX 9
+            'B3XM': 0.082,  # Boeing 737 MAX 10
             
             # Regional aircraft
-            'E190': 0.110, 'E195': 0.108, 'E170': 0.115, 'E175': 0.112,
-            'CRJ7': 0.135, 'CRJ9': 0.130, 'CRJ2': 0.140,
-            'ATR42': 0.125, 'ATR72': 0.120,
-            'DHC8': 0.140, 'DH8D': 0.135,
-            'SB20': 0.150, 'SF34': 0.145,
+            'E190': 0.110,
+            'E195': 0.108,
+            'E170': 0.115,
+            'E175': 0.112,
+            'CRJ7': 0.135,
+            'CRJ9': 0.130,
+            'CRJ2': 0.140,
+            'ATR42': 0.125,
+            'ATR72': 0.120,
+            'ATR72_EASA_EST': 0.0058, # EASA: 0.404 kg/km / 70 passengers (assumed)
+            'DHC8': 0.140,  # Dash 8 series
+            'DH8D': 0.135,  # Dash 8 Q400
+            'SB20': 0.150,  # Saab 2000
+            'SF34': 0.145,  # Saab 340
             
             # Wide-body aircraft
-            'A330': 0.085, 'A333': 0.087, 'A338': 0.083, 'A339': 0.081,
-            'A340': 0.095, 'A342': 0.097, 'A343': 0.095, 'A346': 0.093,
-            'A350': 0.075, 'A359': 0.075, 'A35K': 0.073,
+            'A330': 0.085,
+            'A333': 0.087,  # A330-300
+            'A338': 0.083,  # A330-800neo
+            'A338_EASA_EST': 0.0063, # EASA: 1.570 kg/km / 250 passengers (assumed)
+            'A339': 0.081,  # A330-900neo
+            'A339_EASA_EST': 0.0051, # EASA: 1.527 kg/km / 300 passengers (assumed)
+            'A340': 0.095,
+            'A342': 0.097,  # A340-200
+            'A343': 0.095,  # A340-300
+            'A346': 0.093,  # A340-600
+            'A350': 0.075,
+            'A359': 0.075,  # A350-900
+            'A35K': 0.073,  # A350-1000
+            'A35K_EASA_EST': 0.0049, # EASA: 1.804 kg/km / 370 passengers (assumed)
             'A380': 0.082,
             
-            'B747': 0.090, 'B74F': 0.095, 'B748': 0.088,
-            'B767': 0.088, 'B762': 0.090, 'B763': 0.087,
-            'B777': 0.083, 'B772': 0.085, 'B773': 0.083, 'B77W': 0.081,
-            'B787': 0.070, 'B788': 0.072, 'B789': 0.070, 'B78X': 0.068,
+            'B747': 0.090,
+            'B748': 0.088,  # B747-8 Intercontinental
+            'B767': 0.088,
+            'B762': 0.090,  # B767-200
+            'B763': 0.087,  # B767-300
+            'B777': 0.083,
+            'B772': 0.085,  # B777-200
+            'B773': 0.083,  # B777-300
+            'B77W': 0.081,  # B777-300ER
+            'B787': 0.070,
+            'B788': 0.072,  # B787-8
+            'B789': 0.070,  # B787-9
+            'B78X': 0.068,  # B787-10
             
             # Cargo/Freighter variants
-            'A30B': 0.095, 'B74F': 0.095, 'B77F': 0.085,
-            'MD11': 0.098, 'DC10': 0.105,
+            'A30B': 0.095,  # A300-600F
+            'B74F': 0.095,  # B747 Freighter
+            'B77F': 0.085,  # B777 Freighter
+            'MD11': 0.098,  # MD-11
+            'DC10': 0.105,  # DC-10
             
             # Business jets and smaller aircraft
-            'BE20': 0.180, 'C550': 0.170, 'C56X': 0.165,
-            'GLF4': 0.160, 'GLF5': 0.155, 'GLF6': 0.150,
+            'BE20': 0.180,  # Beechcraft King Air 200
+            'C550': 0.170,  # Cessna Citation II
+            'C56X': 0.165,  # Cessna Citation Excel
+            'GLF4': 0.160,  # Gulfstream IV
+            'GLF5': 0.155,  # Gulfstream V
+            'GLF6': 0.150,  # Gulfstream G650
+            'F8X_EASA_EST': 0.0465, # EASA (Falcon 8X): 0.558 kg/km / 12 passengers (assumed)
             
             'DEFAULT': 0.095
         }
         
         # Aircraft passenger capacities (typical seating)
         self.aircraft_capacities = {
-            # Narrow-body
-            'A319': 150, 'A320': 180, 'A321': 220,
-            'A20N': 180, 'A21N': 220, 'A319NEO': 150,
-            'B737': 175, 'B738': 189, 'B739': 215,
-            'B37M': 189, 'B38M': 189, 'B39M': 215, 'B3XM': 230,
+            # -------------------------
+            # Narrow-body (Single Aisle)
+            # -------------------------
+            'A318': 132, 'A319': 150, 'A320': 180, 'A321': 220,
+            'A19N': 150, 'A20N': 180, 'A21N': 220, 'A319NEO': 150,
+            'B717': 110,
+            'B727': 189,
+            'B737': 175, 'B732': 115, 'B733': 128, 'B734': 146, 'B735': 132,
+            'B736': 149, 'B737CL': 149, 'B737NG': 175,
+            'B738': 189, 'B739': 215, 'B37M': 189, 'B38M': 189, 'B39M': 215, 'B3XM': 230,
+            'C919': 168,
+            'MC21': 211,
+            'TU204': 210,
+            'SU95': 98,
+            'M90': 92,
+
+            # -------------------------
+            # Regional Jets
+            # -------------------------
+            'E170': 80, 'E175': 88, 'E190': 100, 'E195': 120,
+            'E190E2': 114, 'E195E2': 146,
+            'CRJ2': 50, 'CRJ7': 70, 'CRJ9': 90, 'CRJX': 104,
+            'SSJ100': 98,
+            'ARJ21': 90,
+            'MRJ90': 92,
+            'MRJ70': 76,
             
-            # Regional
-            'E190': 100, 'E195': 120, 'E170': 80, 'E175': 88,
-            'CRJ7': 70, 'CRJ9': 90, 'CRJ2': 50,
+            # -------------------------
+            # Turboprops
+            # -------------------------
             'ATR42': 48, 'ATR72': 70,
-            'DHC8': 50, 'DH8D': 78,
+            'DHC6': 19, 'DHC8': 50, 'DH8A': 37, 'DH8B': 50, 'DH8C': 52, 'DH8D': 78,
+            'F50': 50, 'F27': 48,
             'SB20': 19, 'SF34': 34,
+            'AN24': 48,
             
-            # Wide-body
-            'A330': 300, 'A333': 300, 'A338': 300, 'A339': 300,
-            'A340': 320, 'A342': 300, 'A343': 335, 'A346': 380,
+            # -------------------------
+            # Wide-body (Twin & Quad Aisle)
+            # -------------------------
+            # Airbus Wide-bodies
+            'A300': 266, 'A310': 280,
+            'A330': 300, 'A332': 293, 'A333': 300, 'A338': 300, 'A339': 300,
+            'A340': 320, 'A342': 300, 'A343': 335, 'A345': 370, 'A346': 380,
             'A350': 325, 'A359': 325, 'A35K': 350,
             'A380': 525,
-            
-            'B747': 410, 'B74F': 0, 'B748': 467,
-            'B767': 240, 'B762': 224, 'B763': 269,
-            'B777': 350, 'B772': 314, 'B773': 350, 'B77W': 365,
+
+            # Boeing Wide-bodies
+            'B747': 410, 'B741': 366, 'B742': 366, 'B743': 366, 'B744': 416, 'B748': 467,
+            'B74F': 0,  # Freighter
+            'B767': 240, 'B762': 224, 'B763': 269, 'B764': 304,
+            'B777': 350, 'B772': 314, 'B773': 350, 'B77W': 365, 'B77L': 317,
             'B787': 300, 'B788': 250, 'B789': 300, 'B78X': 330,
-            
-            # Business jets
-            'BE20': 8, 'C550': 10, 'C56X': 12,
+
+            # Comac & Russian Wide-bodies
+            'CR929': 280,
+            'IL96': 262,
+            'TU214': 230,
+
+            # -------------------------
+            # Business Jets
+            # -------------------------
+            'BE20': 8, 'C525': 8, 'C550': 10, 'C56X': 12,
+            'C650': 12, 'C750': 12,
             'GLF4': 14, 'GLF5': 16, 'GLF6': 17,
-            
+            'F2TH': 12, 'FA7X': 16, 'FA8X': 19,
+            'H25B': 8, 'LJ31': 8, 'LJ35': 8, 'LJ45': 9, 'LJ60': 10,
+            'PC12': 9, 'P180': 8,
+
+            # -------------------------
+            # Default Fallback
+            # -------------------------
             'DEFAULT': 180
         }
-        
+
         # Expanded airport coordinates database
         self.airports = self.load_comprehensive_airports()
         
@@ -217,7 +300,7 @@ class EnhancedFlightCarbonCalculator:
         }
         return airports
 
-    async def get_opensky_flights(self, session: aiohttp.ClientSession, limit: int = 300) -> List[Dict]:
+    async def get_opensky_flights(self, session: aiohttp.ClientSession, limit: int = 500) -> List[Dict]:
         """Fetch flight data from OpenSky Network API"""
         try:
             url = f"{self.base_urls['opensky']}/states/all"
@@ -254,12 +337,12 @@ class EnhancedFlightCarbonCalculator:
             st.warning(f"Error fetching OpenSky data: {e}")
             return []
 
-    def get_aviationstack_flights(self, limit: int = 100, offset: int = 0) -> List[Dict]:
+    def get_aviationstack_flights(self, limit: int = 500, offset: int = 0) -> List[Dict]:
         """Fetch flight data from AviationStack API"""
         url = f"{self.base_urls['aviationstack']}/flights"
         params = {
             'access_key': self.api_keys['aviationstack'],
-            'limit': min(limit, 100),  # API limit
+            'limit': min(limit, 500),  # API limit
             'offset': offset
         }
         
@@ -529,7 +612,7 @@ class EnhancedFlightCarbonCalculator:
             # 2. OpenSky Network data (real-time flights)
             status_text.text("Collecting real-time flight data from OpenSky Network...")
             async with aiohttp.ClientSession() as session:
-                opensky_flights = await self.get_opensky_flights(session, limit=200)
+                opensky_flights = await self.get_opensky_flights(session, limit=500)
                 processed_opensky = self.process_opensky_data(opensky_flights)
                 all_flights.extend(processed_opensky)
                 st.success(f"Collected {len(processed_opensky)} flights from OpenSky Network")
@@ -1081,12 +1164,12 @@ class AdvancedMLModels:
 def create_streamlit_app():
     """Create the main Streamlit application"""
     st.set_page_config(
-        page_title="Enhanced Flight Carbon Footprint Calculator",
+        page_title="Flight Carbon Footprint Calculator",
         page_icon="✈️",
         layout="wide"
     )
     
-    st.title("✈️ Enhanced Flight Carbon Footprint Calculator")
+    st.title("✈️ Flight Carbon Footprint Calculator")
     st.markdown("**Advanced ML-powered flight emission analysis with comprehensive dataset**")
     
     # Initialize calculator
@@ -1100,7 +1183,7 @@ def create_streamlit_app():
     
     dataset_size = st.sidebar.selectbox(
         "Dataset Size",
-        [1000, 2500, 5000, 7500, 10000],
+        [500, 1000, 2500, 5000, 7500, 10000],
         index=2
     )
     
