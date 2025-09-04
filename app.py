@@ -33,7 +33,7 @@ class EnhancedFlightCarbonCalculator:
         """Initialize the enhanced calculator with multiple data sources"""
         # Multiple API keys for different services
         self.api_keys = {
-            'aviationstack': '565fc324183ddae9fa3f74bcfd582796',
+            'aviationstack': 'ce61fe3d8608b84c9fd7c94795a3f17f',
             'opensky': None, 
             'flightaware': None,
         }
@@ -337,12 +337,12 @@ class EnhancedFlightCarbonCalculator:
             st.warning(f"Error fetching OpenSky data: {e}")
             return []
 
-    def get_aviationstack_flights(self, limit: int = 500, offset: int = 0) -> List[Dict]:
+    def get_aviationstack_flights(self, limit: int = 100, offset: int = 0) -> List[Dict]:
         """Fetch flight data from AviationStack API"""
         url = f"{self.base_urls['aviationstack']}/flights"
         params = {
             'access_key': self.api_keys['aviationstack'],
-            'limit': min(limit, 500),  # API limit
+            'limit': min(limit, 100),  # API limit
             'offset': offset
         }
         
@@ -1098,7 +1098,7 @@ class AdvancedMLModels:
         max_val = max(max(r['actual']) for r in results.values())
         fig.add_trace(go.Scatter(
             x=[min_val, max_val], y=[min_val, max_val], mode='lines',
-            name='Perfect Prediction', line=dict(color='black', dash='dash')
+            name='Perfect Prediction', line=dict(color='yellow', dash='dash')
         ))
         
         fig.update_layout(
@@ -1302,7 +1302,7 @@ def create_streamlit_app():
             
             # Correlation analysis
             st.subheader("🔗 Correlation Analysis")
-            numeric_columns = ['distance_km', 'passenger_capacity', 'load_factor', 
+            numeric_columns = ['distance_km', 'load_factor', 
                              'co2_per_passenger_kg', 'co2_per_passenger_per_km']
             correlation_matrix = df[numeric_columns].corr()
             

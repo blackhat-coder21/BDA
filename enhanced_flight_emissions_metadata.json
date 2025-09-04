@@ -1,22 +1,22 @@
 {
-  "created_at": "2025-09-03T23:21:13.488575",
-  "total_flights": 500,
+  "created_at": "2025-09-04T14:13:26.727704",
+  "total_flights": 1000,
   "data_sources": {
-    "opensky_network": 198,
-    "synthetic": 182,
-    "aviationstack_api": 120
+    "opensky_network": 493,
+    "synthetic": 388,
+    "aviationstack_api": 119
   },
-  "airlines_covered": 54,
-  "routes_covered": 129,
+  "airlines_covered": 42,
+  "routes_covered": 182,
   "aircraft_types": 12,
   "distance_range_km": {
-    "min": 34.16,
+    "min": 40.27,
     "max": 16032.92,
-    "mean": 4524.76722
+    "mean": 5725.6543
   },
   "emissions_range_kg": {
-    "min": 25.76,
-    "max": 1746.47,
-    "mean": 506.5576
+    "min": 24.58,
+    "max": 1750.99,
+    "mean": 619.1345200000001
   }
 }
